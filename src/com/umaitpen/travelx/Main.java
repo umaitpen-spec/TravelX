@@ -267,6 +267,7 @@ public class Main {
         long travelDate = readDate("Travel date (yyyy-mm-dd): ");
         Booking booking = hotelModel.bookHotel(user.getId(), hotelId, rooms, travelDate);
         System.out.println("Booking created: " + booking);
+        System.out.println("Please use Make payment with Booking ID " + booking.getId() + " to confirm it.");
     }
 
     private void bookFlight(User user) {
@@ -276,6 +277,7 @@ public class Main {
         long travelDate = readDate("Travel date (yyyy-mm-dd): ");
         Booking booking = flightModel.bookFlight(user.getId(), flightId, seats, travelDate);
         System.out.println("Booking created: " + booking);
+        System.out.println("Please use Make payment with Booking ID " + booking.getId() + " to confirm it.");
     }
 
     private void makePayment() {

@@ -121,10 +121,10 @@ public class TravelXDB {
             throw new IllegalArgumentException("Not enough rooms available.");
         }
         hotel.setAvailableRooms(hotel.getAvailableRooms() - rooms);
-        Booking booking = new Booking(bookingSeq++, userId, Booking.ServiceType.HOTEL, hotelId, now(), travelDate, rooms, rooms * hotel.getPricePerNight(), Booking.BookingStatus.BOOKED);
+        Booking booking = new Booking(bookingSeq++, userId, Booking.ServiceType.HOTEL, hotelId, now(), travelDate, rooms, rooms * hotel.getPricePerNight(), Booking.BookingStatus.PENDING_PAYMENT);
         bookings.add(booking);
-        notifyUser(userId, "Hotel booking created. Booking ID: " + booking.getId());
-        notifyUser(hotel.getProviderId(), "New hotel booking received. Booking ID: " + booking.getId());
+        notifyUser(userId, "Hotel booking created and waiting for payment. Booking ID: " + booking.getId());
+        notifyUser(hotel.getProviderId(), "New hotel booking is waiting for payment. Booking ID: " + booking.getId());
         return booking;
     }
 
@@ -134,18 +134,23 @@ public class TravelXDB {
             throw new IllegalArgumentException("Not enough seats available.");
         }
         flight.setAvailableSeats(flight.getAvailableSeats() - seats);
-        Booking booking = new Booking(bookingSeq++, userId, Booking.ServiceType.FLIGHT, flightId, now(), travelDate, seats, seats * flight.getPrice(), Booking.BookingStatus.BOOKED);
+        Booking booking = new Booking(bookingSeq++, userId, Booking.ServiceType.FLIGHT, flightId, now(), travelDate, seats, seats * flight.getPrice(), Booking.BookingStatus.PENDING_PAYMENT);
         bookings.add(booking);
-        notifyUser(userId, "Flight booking created. Booking ID: " + booking.getId());
-        notifyUser(flight.getProviderId(), "New flight booking received. Booking ID: " + booking.getId());
+        notifyUser(userId, "Flight booking created and waiting for payment. Booking ID: " + booking.getId());
+        notifyUser(flight.getProviderId(), "New flight booking is waiting for payment. Booking ID: " + booking.getId());
         return booking;
     }
 
     public Payment makePayment(Long bookingId, Payment.PaymentMethod method) {
         Booking booking = findBooking(bookingId).orElseThrow(() -> new IllegalArgumentException("Booking not found."));
+        if (booking.getStatus() != Booking.BookingStatus.PENDING_PAYMENT) {
+            throw new IllegalArgumentException("Payment is allowed only for pending bookings.");
+        }
         Payment payment = new Payment(paymentSeq++, bookingId, booking.getTotalAmount(), method, Payment.PaymentStatus.SUCCESS, "TXN" + System.currentTimeMillis(), now());
         payments.add(payment);
+        booking.setStatus(Booking.BookingStatus.BOOKED);
         notifyUser(booking.getUserId(), "Payment successful for booking " + bookingId + ". Transaction: " + payment.getTransactionId());
+        notifyProviderForBooking(booking, "Booking " + bookingId + " confirmed after successful payment.");
         return payment;
     }
 
