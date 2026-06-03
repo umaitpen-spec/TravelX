@@ -64,6 +64,10 @@ public class TravelXDB {
         return users.stream().filter(user -> user.getEmail().equalsIgnoreCase(email)).findFirst();
     }
 
+    public Optional<User> findUser(Long id) {
+        return users.stream().filter(user -> user.getId().equals(id)).findFirst();
+    }
+
     public List<User> getUsers() {
         return new ArrayList<>(users);
     }
@@ -133,6 +137,7 @@ public class TravelXDB {
     }
 
     public Booking bookHotel(Long userId, Long hotelId, int rooms, long travelDate) {
+        User user = findUser(userId).orElseThrow(() -> new IllegalArgumentException("User not found."));
         Hotel hotel = findHotel(hotelId).orElseThrow(() -> new IllegalArgumentException("Hotel not found."));
         validateTravelDate(travelDate);
         validatePositive(rooms, "Rooms");
@@ -140,7 +145,7 @@ public class TravelXDB {
             throw new IllegalArgumentException("Not enough rooms available.");
         }
         hotel.setAvailableRooms(hotel.getAvailableRooms() - rooms);
-        Booking booking = new Booking(bookingSeq++, userId, Booking.ServiceType.HOTEL, hotelId, now(), travelDate, rooms, rooms * hotel.getPricePerNight(), Booking.BookingStatus.PENDING_PAYMENT);
+        Booking booking = new Booking(bookingSeq++, userId, user.getName(), Booking.ServiceType.HOTEL, hotelId, hotel.getName(), now(), travelDate, rooms, rooms * hotel.getPricePerNight(), Booking.BookingStatus.PENDING_PAYMENT);
         bookings.add(booking);
         notifyUser(userId, "Hotel booking created and waiting for payment. Booking ID: " + booking.getId());
         notifyUser(hotel.getProviderId(), "New hotel booking is waiting for payment. Booking ID: " + booking.getId());
@@ -148,6 +153,7 @@ public class TravelXDB {
     }
 
     public Booking bookFlight(Long userId, Long flightId, int seats, long travelDate) {
+        User user = findUser(userId).orElseThrow(() -> new IllegalArgumentException("User not found."));
         Flight flight = findFlight(flightId).orElseThrow(() -> new IllegalArgumentException("Flight not found."));
         validateTravelDate(travelDate);
         validatePositive(seats, "Seats");
@@ -155,7 +161,7 @@ public class TravelXDB {
             throw new IllegalArgumentException("Not enough seats available.");
         }
         flight.setAvailableSeats(flight.getAvailableSeats() - seats);
-        Booking booking = new Booking(bookingSeq++, userId, Booking.ServiceType.FLIGHT, flightId, now(), travelDate, seats, seats * flight.getPrice(), Booking.BookingStatus.PENDING_PAYMENT);
+        Booking booking = new Booking(bookingSeq++, userId, user.getName(), Booking.ServiceType.FLIGHT, flightId, flight.getFlightNumber(), now(), travelDate, seats, seats * flight.getPrice(), Booking.BookingStatus.PENDING_PAYMENT);
         bookings.add(booking);
         notifyUser(userId, "Flight booking created and waiting for payment. Booking ID: " + booking.getId());
         notifyUser(flight.getProviderId(), "New flight booking is waiting for payment. Booking ID: " + booking.getId());

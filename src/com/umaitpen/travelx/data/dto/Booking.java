@@ -1,10 +1,18 @@
 package com.umaitpen.travelx.data.dto;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+
 public class Booking {
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
     private Long id;
     private Long userId;
+    private String userName;
     private ServiceType serviceType;
     private Long serviceId;
+    private String serviceName;
     private Long bookingDate;
     private Long travelDate;
     private Integer quantity; // seats or rooms
@@ -23,10 +31,20 @@ public class Booking {
     }
 
     public Booking(Long id, Long userId, ServiceType serviceType, Long serviceId, Long bookingDate, Long travelDate, Integer quantity, Double totalAmount, BookingStatus status) {
+        this(id, userId, null, serviceType, serviceId, null, bookingDate, travelDate, quantity, totalAmount, status);
+    }
+
+    public Booking(Long id, Long userId, ServiceType serviceType, Long serviceId, String serviceName, Long bookingDate, Long travelDate, Integer quantity, Double totalAmount, BookingStatus status) {
+        this(id, userId, null, serviceType, serviceId, serviceName, bookingDate, travelDate, quantity, totalAmount, status);
+    }
+
+    public Booking(Long id, Long userId, String userName, ServiceType serviceType, Long serviceId, String serviceName, Long bookingDate, Long travelDate, Integer quantity, Double totalAmount, BookingStatus status) {
         this.id = id;
         this.userId = userId;
+        this.userName = userName;
         this.serviceType = serviceType;
         this.serviceId = serviceId;
+        this.serviceName = serviceName;
         this.bookingDate = bookingDate;
         this.travelDate = travelDate;
         this.quantity = quantity;
@@ -50,6 +68,14 @@ public class Booking {
         this.userId = userId;
     }
 
+    public String getUserName() {
+        return userName;
+    }
+
+    public void setUserName(String userName) {
+        this.userName = userName;
+    }
+
     public ServiceType getServiceType() {
         return serviceType;
     }
@@ -64,6 +90,14 @@ public class Booking {
 
     public void setServiceId(Long serviceId) {
         this.serviceId = serviceId;
+    }
+
+    public String getServiceName() {
+        return serviceName;
+    }
+
+    public void setServiceName(String serviceName) {
+        this.serviceName = serviceName;
     }
 
     public Long getBookingDate() {
@@ -108,6 +142,15 @@ public class Booking {
 
     @Override
     public String toString() {
-        return id + " | user " + userId + " | " + serviceType + " #" + serviceId + " | qty " + quantity + " | Rs." + totalAmount + " | " + status;
+        String user = userName == null || userName.trim().isEmpty() ? "user " + userId : userName;
+        String service = serviceName == null || serviceName.trim().isEmpty() ? serviceType + " #" + serviceId : serviceName;
+        return id + " | " + user + " | " + serviceType + " | " + service + " | booked " + formatDate(bookingDate) + " | travel " + formatDate(travelDate) + " | qty " + quantity + " | Rs." + totalAmount + " | " + status;
+    }
+
+    private String formatDate(Long epochMillis) {
+        if (epochMillis == null) {
+            return "-";
+        }
+        return Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).format(DATE_FORMATTER);
     }
 }
