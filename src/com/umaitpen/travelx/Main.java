@@ -22,7 +22,6 @@ import com.umaitpen.travelx.features.signup.SignUpModel;
 import com.umaitpen.travelx.features.signup.SignUpView;
 import com.umaitpen.travelx.features.user.UserModel;
 import com.umaitpen.travelx.features.user.UserView;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
@@ -92,8 +91,8 @@ public class Main {
         String mobileNo = readLine("Mobile number: ");
         System.out.println("1. Customer");
         System.out.println("2. Service Provider");
-        User.Role role = readInt("Role: ") == 2 ? User.Role.PROVIDER : User.Role.CUSTOMER;
         try {
+            User.Role role = readRole();
             User user = signUpModel.register(name, email, password, mobileNo, role);
             signUpView.showSuccess(user.getName());
         } catch (IllegalArgumentException exception) {
@@ -111,7 +110,7 @@ public class Main {
             return;
         }
         User user = loggedInUser.get();
-        System.out.println("Welcome, " + user.getName() + " (" + user.getRole() + ")");
+        System.out.println("Hi, " + user.getName() + " (" + user.getRole() + ")");
         if (user.getRole() == User.Role.CUSTOMER) {
             customerMenu(user);
         } else if (user.getRole() == User.Role.PROVIDER) {
@@ -149,7 +148,7 @@ public class Main {
                         bookFlight(user);
                         break;
                     case 5:
-                        makePayment();
+                        makePayment(user);
                         break;
                     case 6:
                         userView.printBookings(userModel.getBookingsForUser(user.getId()));
@@ -280,14 +279,14 @@ public class Main {
         System.out.println("Please use Make payment with Booking ID " + booking.getId() + " to confirm it.");
     }
 
-    private void makePayment() {
+    private void makePayment(User user) {
         Long bookingId = readLong("Booking ID: ");
         System.out.println("1. Card");
         System.out.println("2. UPI");
         System.out.println("3. NetBanking");
         int option = readInt("Payment method: ");
-        Payment.PaymentMethod method = option == 2 ? Payment.PaymentMethod.UPI : option == 3 ? Payment.PaymentMethod.NETBANKING : Payment.PaymentMethod.CARD;
-        Payment payment = paymentModel.pay(bookingId, method);
+        Payment.PaymentMethod method = readPaymentMethod(option);
+        Payment payment = paymentModel.pay(user.getId(), bookingId, method);
         System.out.println("Payment saved: " + payment);
     }
 
@@ -330,9 +329,44 @@ public class Main {
             return;
         }
         Long cancellationId = readLong("Cancellation ID: ");
-        boolean approve = readLine("Approve refund? (yes/no): ").equalsIgnoreCase("yes");
-        Cancellation cancellation = userModel.processRefund(cancellationId, approve);
+        boolean approve = readYesNo("Approve refund? (yes/no): ");
+        Cancellation cancellation = userModel.processRefund(provider.getId(), cancellationId, approve);
         System.out.println("Refund updated: " + cancellation);
+    }
+
+    private User.Role readRole() {
+        int option = readInt("Role: ");
+        if (option == 1) {
+            return User.Role.CUSTOMER;
+        }
+        if (option == 2) {
+            return User.Role.PROVIDER;
+        }
+        throw new IllegalArgumentException("Invalid role option.");
+    }
+
+    private Payment.PaymentMethod readPaymentMethod(int option) {
+        if (option == 1) {
+            return Payment.PaymentMethod.CARD;
+        }
+        if (option == 2) {
+            return Payment.PaymentMethod.UPI;
+        }
+        if (option == 3) {
+            return Payment.PaymentMethod.NETBANKING;
+        }
+        throw new IllegalArgumentException("Invalid payment method.");
+    }
+
+    private boolean readYesNo(String prompt) {
+        String answer = readLine(prompt);
+        if (answer.equalsIgnoreCase("yes")) {
+            return true;
+        }
+        if (answer.equalsIgnoreCase("no")) {
+            return false;
+        }
+        throw new IllegalArgumentException("Enter yes or no.");
     }
 
     private long readDate(String prompt) {

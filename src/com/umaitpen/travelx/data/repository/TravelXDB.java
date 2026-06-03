@@ -38,6 +38,10 @@ public class TravelXDB {
     }
 
     public User createUser(String name, String email, String password, String mobileNo, User.Role role) {
+        validateRequired(name, "Name");
+        validateEmail(email);
+        validateRequired(password, "Password");
+        validateMobileNo(mobileNo);
         if (findUserByEmail(email).isPresent()) {
             throw new IllegalArgumentException("Email already registered.");
         }
@@ -66,6 +70,10 @@ public class TravelXDB {
 
     public Hotel addHotel(String name, String location, String description, double pricePerNight, int totalRooms, Long providerId) {
         validateProvider(providerId);
+        validateRequired(name, "Hotel name");
+        validateRequired(location, "Location");
+        validatePositive(pricePerNight, "Price per night");
+        validatePositive(totalRooms, "Total rooms");
         Hotel hotel = new Hotel(hotelSeq++, name, location, description, pricePerNight, totalRooms, totalRooms, providerId);
         hotels.add(hotel);
         notifyUser(providerId, "Hotel added: " + hotel.getName());
@@ -74,6 +82,15 @@ public class TravelXDB {
 
     public Flight addFlight(String flightNumber, String source, String destination, long departureTime, long arrivalTime, double price, int totalSeats, Long providerId) {
         validateProvider(providerId);
+        validateRequired(flightNumber, "Flight number");
+        validateRequired(source, "Source");
+        validateRequired(destination, "Destination");
+        validateTravelDate(departureTime);
+        if (arrivalTime < departureTime) {
+            throw new IllegalArgumentException("Arrival date cannot be before departure date.");
+        }
+        validatePositive(price, "Price");
+        validatePositive(totalSeats, "Total seats");
         Flight flight = new Flight(flightSeq++, flightNumber, source, destination, departureTime, arrivalTime, price, totalSeats, totalSeats, providerId);
         flights.add(flight);
         notifyUser(providerId, "Flight added: " + flight.getFlightNumber());
@@ -117,6 +134,8 @@ public class TravelXDB {
 
     public Booking bookHotel(Long userId, Long hotelId, int rooms, long travelDate) {
         Hotel hotel = findHotel(hotelId).orElseThrow(() -> new IllegalArgumentException("Hotel not found."));
+        validateTravelDate(travelDate);
+        validatePositive(rooms, "Rooms");
         if (hotel.getAvailableRooms() < rooms) {
             throw new IllegalArgumentException("Not enough rooms available.");
         }
@@ -130,6 +149,8 @@ public class TravelXDB {
 
     public Booking bookFlight(Long userId, Long flightId, int seats, long travelDate) {
         Flight flight = findFlight(flightId).orElseThrow(() -> new IllegalArgumentException("Flight not found."));
+        validateTravelDate(travelDate);
+        validatePositive(seats, "Seats");
         if (flight.getAvailableSeats() < seats) {
             throw new IllegalArgumentException("Not enough seats available.");
         }
@@ -141,8 +162,11 @@ public class TravelXDB {
         return booking;
     }
 
-    public Payment makePayment(Long bookingId, Payment.PaymentMethod method) {
+    public Payment makePayment(Long userId, Long bookingId, Payment.PaymentMethod method) {
         Booking booking = findBooking(bookingId).orElseThrow(() -> new IllegalArgumentException("Booking not found."));
+        if (!booking.getUserId().equals(userId)) {
+            throw new IllegalArgumentException("You can pay only for your own booking.");
+        }
         if (booking.getStatus() != Booking.BookingStatus.PENDING_PAYMENT) {
             throw new IllegalArgumentException("Payment is allowed only for pending bookings.");
         }
@@ -159,6 +183,7 @@ public class TravelXDB {
         if (!booking.getUserId().equals(userId)) {
             throw new IllegalArgumentException("You can cancel only your own booking.");
         }
+        validateRequired(reason, "Cancellation reason");
         if (booking.getStatus() != Booking.BookingStatus.BOOKED) {
             throw new IllegalArgumentException("Only booked orders can be cancelled.");
         }
@@ -172,14 +197,18 @@ public class TravelXDB {
         return cancellation;
     }
 
-    public Cancellation processRefund(Long cancellationId, boolean approve) {
+    public Cancellation processRefund(Long providerId, Long cancellationId, boolean approve) {
         Cancellation cancellation = cancellations.stream()
                 .filter(item -> item.getId().equals(cancellationId))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Cancellation request not found."));
+        Booking booking = findBooking(cancellation.getBookingId()).orElseThrow(() -> new IllegalArgumentException("Booking not found."));
+        if (!isProviderBooking(booking, providerId)) {
+            throw new IllegalArgumentException("You can process refunds only for your own services.");
+        }
         cancellation.setStatus(approve ? Cancellation.CancellationStatus.REFUNDED : Cancellation.CancellationStatus.REJECTED);
         cancellation.setProcessedDate(now());
-        findBooking(cancellation.getBookingId()).ifPresent(booking -> notifyUser(booking.getUserId(), "Refund " + cancellation.getStatus() + " for booking " + booking.getId()));
+        notifyUser(booking.getUserId(), "Refund " + cancellation.getStatus() + " for booking " + booking.getId());
         return cancellation;
     }
 
@@ -254,6 +283,44 @@ public class TravelXDB {
                 .orElseThrow(() -> new IllegalArgumentException("Provider not found."));
         if (provider.getRole() != User.Role.PROVIDER && provider.getRole() != User.Role.ADMIN) {
             throw new IllegalArgumentException("Only providers can add services.");
+        }
+    }
+
+    private void validateTravelDate(long travelDate) {
+        long today = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        if (travelDate < today) {
+            throw new IllegalArgumentException("Travel date cannot be in the past.");
+        }
+    }
+
+    private void validateMobileNo(String mobileNo) {
+        if (mobileNo == null || !mobileNo.matches("\\d{10}")) {
+            throw new IllegalArgumentException("Mobile number must contain exactly 10 digits.");
+        }
+    }
+
+    private void validateEmail(String email) {
+        validateRequired(email, "Email");
+        if (!email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")) {
+            throw new IllegalArgumentException("Enter a valid email address.");
+        }
+    }
+
+    private void validateRequired(String value, String fieldName) {
+        if (isBlank(value)) {
+            throw new IllegalArgumentException(fieldName + " is required.");
+        }
+    }
+
+    private void validatePositive(int value, String fieldName) {
+        if (value <= 0) {
+            throw new IllegalArgumentException(fieldName + " must be greater than 0.");
+        }
+    }
+
+    private void validatePositive(double value, String fieldName) {
+        if (!Double.isFinite(value) || value <= 0) {
+            throw new IllegalArgumentException(fieldName + " must be greater than 0.");
         }
     }
 

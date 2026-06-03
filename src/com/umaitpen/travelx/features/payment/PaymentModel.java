@@ -12,8 +12,8 @@ public class PaymentModel {
         this.db = db;
     }
 
-    public Payment pay(Long bookingId, Payment.PaymentMethod method) {
-        return db.makePayment(bookingId, method);
+    public Payment pay(Long userId, Long bookingId, Payment.PaymentMethod method) {
+        return db.makePayment(userId, bookingId, method);
     }
 
     public List<Payment> getPaymentsForUser(Long userId) {

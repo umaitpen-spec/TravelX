@@ -30,8 +30,8 @@ public class UserModel {
         return db.cancelBooking(userId, bookingId, reason);
     }
 
-    public Cancellation processRefund(Long cancellationId, boolean approve) {
-        return db.processRefund(cancellationId, approve);
+    public Cancellation processRefund(Long providerId, Long cancellationId, boolean approve) {
+        return db.processRefund(providerId, cancellationId, approve);
     }
 
     public List<Cancellation> getCancellationsForProvider(Long providerId) {
